@@ -7,16 +7,27 @@
 
 ### 1. Visual & Anatomical Specifications
 
-#### 1.1 Cat Profiles
-| Attribute | **Appa** (The Zen Cruiser) | **Queso** (The Chaotic Sprinter) |
+#### 1.1 Real Cat Fidelity & Asset Pipeline
+To faithfully represent the real-life **Appa** and **Queso**, the system defines a two-tier model pipeline:
+
+1. **Source Asset Inputs (`public/assets/cats/`)**:
+   - `appa.png` / `appa.jpg`: Reference photo(s) of Appa.
+   - `queso.png` / `queso.jpg`: Reference photo(s) of Queso.
+2. **Model Asset Loading (`public/assets/models/`)**:
+   - `appa.glb` & `queso.glb`: Custom 3D meshes derived from real photos via Image-to-3D GenAI pipelines (e.g. Meshy, Tripo3D, or Blender photogrammetry).
+   - **Procedural Shader Fallback**: If `.glb` assets are not present, the engine renders procedural low-poly rigs whose UVs and color maps are dynamically mapped to match their real fur coats, markings (patches, stripes, socks), and eye colors.
+
+#### 1.2 Cat Real-Life Profiles
+| Attribute | **Appa** (Real Cat Likeness) | **Queso** (Real Cat Likeness) |
 | :--- | :--- | :--- |
-| **Fur Aesthetic** | Fluffy cream-white with grey accents | Fiery ginger/orange tabby with white bib |
-| **Ear Posture** | Relaxed, slightly rounded ears | Sharp, alert, aerodynamic triangular ears |
+| **Fur Coat & Markings** | Configured to real Appa coat (fur patterns, patches, bib) | Configured to real Queso coat (stripes, color gradients) |
+| **Eye Color** | Matched to real Appa eyes | Matched to real Queso eyes |
+| **Ear Posture & Shape** | Anatomically accurate to Appa | Anatomically accurate to Queso |
 | **Riding Posture** | Upright, relaxed back, casual paw grip | Leaned forward over handlebars, intense stare |
 | **Bike Theme** | Mint cyan / teal metallic frame | Cheddar yellow / flame orange frame |
-| **Tail Physics** | Slow, elegant pendular tail swish | Rapid, excited, twitching tail motions |
+| **Tail Physics** | Matched to Appa's real tail length/fluff | Matched to Queso's real tail length/fluff |
 
-#### 1.2 The Bicycle Rig Architecture
+#### 1.3 The Bicycle Rig Architecture
 The bicycle is constructed from optimized procedural Three.js low-poly primitives:
 - `FrameGroup`: Diamond frame, seat post, and saddle.
 - `SteeringGroup`: Fork, stem, and handlebars (rotates with steering input).
