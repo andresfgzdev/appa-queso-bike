@@ -17,15 +17,15 @@ To faithfully represent the real-life **Appa** and **Queso**, the system defines
    - `appa.glb` & `queso.glb`: Custom 3D meshes derived from real photos via Image-to-3D GenAI pipelines (e.g. Meshy, Tripo3D, or Blender photogrammetry).
    - **Procedural Shader Fallback**: If `.glb` assets are not present, the engine renders procedural low-poly rigs whose UVs and color maps are dynamically mapped to match their real fur coats, markings (patches, stripes, socks), and eye colors.
 
-#### 1.2 Cat Real-Life Profiles
+#### 1.2 Cat Real-Life Profiles (Confirmed from Photos)
 | Attribute | **Appa** (Real Cat Likeness) | **Queso** (Real Cat Likeness) |
 | :--- | :--- | :--- |
-| **Fur Coat & Markings** | Configured to real Appa coat (fur patterns, patches, bib) | Configured to real Queso coat (stripes, color gradients) |
-| **Eye Color** | Matched to real Appa eyes | Matched to real Queso eyes |
-| **Ear Posture & Shape** | Anatomically accurate to Appa | Anatomically accurate to Queso |
-| **Riding Posture** | Upright, relaxed back, casual paw grip | Leaned forward over handlebars, intense stare |
+| **Fur Coat & Markings** | Pristine white coat with soft grey/brown tabby cap & forehead markings | Rich ginger/orange tabby with crisp white bib/chest and white mittens |
+| **Eye Color & Expression** | Inquisitive hazel-green eyes; calm, regal posture | Alert, expressive amber-green eyes; enthusiastic posture |
+| **Nose & Face** | Dark hazel/brown nose tip, slender face | Bright coral-pink nose, prominent white muzzle |
+| **Source Asset** | `public/assets/cats/appa.png` (Transparent cutout) | `public/assets/cats/queso.png` (Transparent cutout) |
 | **Bike Theme** | Mint cyan / teal metallic frame | Cheddar yellow / flame orange frame |
-| **Tail Physics** | Matched to Appa's real tail length/fluff | Matched to Queso's real tail length/fluff |
+| **Voice Profile (TTS)** | Pitch: `0.85`, Rate: `0.95`, contemplative & zen | Pitch: `1.45`, Rate: `1.30`, energetic & chaotic |
 
 #### 1.3 The Bicycle Rig Architecture
 The bicycle is constructed from optimized procedural Three.js low-poly primitives:
