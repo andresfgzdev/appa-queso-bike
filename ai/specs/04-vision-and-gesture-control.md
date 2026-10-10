@@ -1,7 +1,10 @@
 # Spec 04: Edge AI Computer Vision & Gesture Steering
 
-## Status: Approved
-## Feature: `features/ai-companion` (Vision Subsystem)
+## Status: Backlog (approved idea, not implemented)
+## Feature: `features/vision` (planned)
+
+> Not built yet. When implemented it must stay fully on-device (WASM model shipped with the app,
+> no CDN fetch at runtime) to respect Spec 00's offline tenet, and feed `InputManager.setSteerManual`.
 
 ---
 

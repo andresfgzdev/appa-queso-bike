@@ -1,95 +1,94 @@
 # Spec 00: System Architecture & Engineering Principles
 
-## Status: Approved
+## Status: Implemented
 ## Feature: System Architecture
-## Author: Senior AI & Graphics Software Engineer
 
 ---
 
-### 1. Executive Summary & Design Philosophy
-**Appa & Queso Bike** is a 100% client-side, browser-executable 3D endless runner featuring an autonomous on-device AI cognitive and personality system. 
+### 1. Summary & Tenets
+**Appa & Queso Bike** is a 100% client-side 3D endless ride along a Southern-California beach at
+golden hour, starring two real cats (Appa and Queso). Everything — geometry, textures, sky, ocean,
+fur, animation and music — is generated procedurally in the browser.
 
-#### Core Tenets
-1. **Zero Cloud Dependency (100% Offline / Edge Execution)**: All 3D rendering, physics simulation, procedural generation, personality logic, and audio synthesis execute directly inside the client's browser (WebAssembly, WebGL, Web Audio, and Web Speech API). No external servers, API keys, or cloud latency.
-2. **Decoupled 2-Tier Loop Architecture**:
-   - **Fast Loop (60–120 FPS)**: Three.js WebGL scene graph, endless road conveyor recycling, bike kinematic physics, and skeletal paw pedaling.
-   - **Slow Loop (0.2–0.5 Hz / Event-Driven)**: Local AI Brain evaluating game state metrics (velocity, road curvature, near misses) to trigger dynamic in-character thoughts and voice lines.
-3. **Type-Safe Contract Boundary**: Clear separation of concerns utilizing Feature-Based Architecture (`game`, `cat-rider`, `ai-companion`, `hud`) with strictly typed interfaces.
+1. **Zero cloud dependency.** No runtime network calls, APIs or remote assets. The only shipped
+   media are the two cat cutout photos used as HUD avatars.
+2. **Procedural over downloaded.** Textures (sand, concrete, asphalt, fur, facades), models (bike,
+   cats, palms, pier, cars) and audio are generated in code (ADR-003, ADR-009).
+3. **Fast loop / React shell split.** The engine owns a native `requestAnimationFrame` loop; React
+   only renders the HUD and receives throttled telemetry.
+4. **Feature-based, typed modules** with clear contracts between `game`, `cat-rider`, `hud`, `audio`.
+5. **Batch everything.** Static scenery is baked per material; animated assemblies are CPU-skinned
+   into one draw call per material (Spec 08).
 
 ---
 
-### 2. High-Level Component Topology
+### 2. Component Topology
 
 ```mermaid
 flowchart TB
-    subgraph Browser ["Client Runtime (Browser Engine)"]
-        subgraph InputLayer ["Input Subsystem"]
-            KB["Keyboard Controller (A/D, Arrows)"]
-            Touch["Touch / Pointer Drag Controller"]
-            Switch["Cat Switch Trigger (Key 'C' / Click)"]
-        end
-
-        subgraph GameCore ["Fast Loop: 3D Simulation (60 FPS)"]
-            RoadMgr["RoadManager (Infinite Treadmill Recycling)"]
-            BikeCtrl["BikeController (Banking, Steer Lerp, Pedals)"]
-            Camera["ChaseCamera (Lagged Damped Follower)"]
-            Three["Three.js WebGL Scene & Shaders"]
-        end
-
-        subgraph AIEngine ["Slow Loop: Edge AI & Cognitive Subsystem"]
-            Sensors["Telemetry Sensor (Speed, Steer, Close Calls)"]
-            PersonaEngine["Persona State Machine (Appa vs Queso)"]
-            DialogueGen["Local Contextual Dialogue Generator"]
-            VoiceSynthesizer["Web Speech API (Pitch-shifted TTS)"]
-        end
-
-        subgraph UIOverlay ["Presentation Layer (React + shadcn/ui)"]
-            HUD["Speedometer & Odometer"]
-            CatBar["Cat Profile & Switch Selector"]
-            SpeechBubble["Dynamic Thought / Dialogue Overlay"]
-        end
+    subgraph React ["React shell (src/app, src/features/hud)"]
+        App["App.tsx"] --> HUD["GameHUD"]
+        App --> Intro["IntroOverlay"]
     end
 
-    InputLayer --> BikeCtrl
-    InputLayer --> PersonaEngine
-    BikeCtrl --> Sensors
-    RoadMgr --> Sensors
-    Sensors --> PersonaEngine
-    PersonaEngine --> DialogueGen
-    DialogueGen --> VoiceSynthesizer
-    DialogueGen --> SpeechBubble
-    BikeCtrl --> Three
-    RoadMgr --> Three
-    Camera --> Three
-    BikeCtrl --> HUD
+    subgraph Engine ["GameEngine (src/features/game)"]
+        Input["InputManager<br/>keys · pointer · touch"]
+        Camera["ChaseCamera<br/>intro flight + chase"]
+        Road["RoadManager<br/>treadmill chunks"]
+        World["Sky · Ocean · Pier · SkyLife · Traffic · Particles"]
+        Post["PostFX<br/>bloom · grade · FXAA"]
+        Quality["Quality + AdaptiveResolution"]
+    end
+
+    subgraph Rider ["cat-rider"]
+        Bike["BikeRig<br/>frame · steering · drivetrain"]
+        Cat["CatMeshBuilder + CatRider<br/>IK · fur shells · batches"]
+    end
+
+    Audio["AmbientAudio<br/>(src/features/audio)"]
+
+    App -->|creates / destroys| Engine
+    Input --> Engine
+    Engine --> Rider
+    Road --> World
+    Engine -->|telemetry ~12 Hz| App
+    Engine -->|speed| Audio
+    HUD -->|switch cat · touch steer/boost · sound toggle| Engine
 ```
 
 ---
 
-### 3. Feature Directory Boundaries & Responsibilities
+### 3. Directory Map
 
 ```
 src/
-├── app/
-│   ├── App.tsx               # Top-level composition & HUD overlay
-│   ├── main.tsx              # StrictMode React mount
-│   └── globals.css           # Tailwind design tokens & CSS variables
-├── components/ui/            # Headless shadcn primitives (Button, Card, Badge)
-├── features/
-│   ├── game/                 # Core 3D engine: canvas, infinite conveyor, chase camera
-│   ├── cat-rider/            # Appa & Queso 3D rigs, bike chassis, pedaling animator
-│   ├── ai-companion/         # 100% local AI brain, telemetry observer, persona generator
-│   └── hud/                  # Game controls overlay, speedometer, dialogue subtitles
+├── app/                    # App.tsx (composition), main.tsx (mount), globals.css
 ├── lib/
-│   └── utils.ts              # Classname utilities (cn)
-└── vite-env.d.ts             # Ambient declarations
+│   ├── bakeStatic.ts       # merge static meshes by material (vertex-colour collapse)
+│   ├── DynamicBatch.ts     # CPU-skinned per-material batching for animated parts
+│   └── utils.ts
+├── features/
+│   ├── game/               # engine, camera, road, world, post-processing, quality
+│   ├── cat-rider/          # bike rig, cat rig, IK math, fur shells
+│   ├── hud/                # HUD + intro overlay (React)
+│   └── audio/              # generative ambient soundscape (Web Audio)
+└── vite-env.d.ts
+ai/                         # specs, ADRs, roadmap (AI-First hub)
 ```
 
 ---
 
-### 4. Deterministic State Bridge (React <-> Three.js)
+### 4. React ↔ Engine Bridge
+- React mounts a container `<div>` once; `GameEngine` appends its own canvas.
+- The engine never re-renders through React. It exposes callbacks:
+  - `onTelemetry(GameTelemetry)` — throttled to ~12 Hz and only when values change.
+  - `onCatSwitched(CatId)`, `onIntroChange(playing)`, `audio.onStateChange(enabled, started)`.
+- React calls imperative methods: `switchCat`, `skipIntro`, `input.setSteerManual`,
+  `input.setBoostManual`, `audio.toggle`.
+- `destroy()` tears down the loop, listeners, GPU resources and the audio context (React
+  StrictMode mounts twice in development; both instances must clean up fully).
 
-To achieve maximum performance, Three.js does **not** re-render through React reconciler passes. Instead:
-- React mounts the `<canvas>` once via `useRef<HTMLCanvasElement>`.
-- The game loop runs on native `requestAnimationFrame(tick)`.
-- Communication from Three.js to React UI occurs via lightweight **Pub/Sub event emitters** or reactive signal stores (e.g. `onSpeedChange`, `onCatDialogue`), ensuring 0 React re-renders during the 60 FPS animation loop.
+### 5. Acceptance Criteria
+1. No network requests after the initial page load.
+2. Unmounting the app releases all listeners, GPU resources and audio nodes.
+3. The HUD re-renders at telemetry rate, never at frame rate.

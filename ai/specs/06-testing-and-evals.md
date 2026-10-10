@@ -1,46 +1,44 @@
-# Spec 06: Quality Assurance, Benchmarks & AI Evals
+# Spec 06: Testing, Verification & Performance Budget
 
-## Status: Approved
-## Feature: `testing-and-evals`
-
----
-
-### 1. 3D Engine Performance Benchmarks
-
-| Metric | Target | Verification Method |
-| :--- | :--- | :--- |
-| **Frame Rate** | Steady 60 FPS ($16.6\text{ms}/\text{frame}$) | `stats.js` / Three.js clock telemetry |
-| **Draw Calls** | $< 45$ draw calls / frame | Shared materials & instanced tree/prop meshes |
-| **Memory Stability** | $0\text{ MB}$ uncollected heap growth over 10 min | Chrome DevTools Memory Heap Snapshot comparison |
-| **Road Recycling** | $< 2\text{ms}$ execution time per recycle event | Performance mark profiling |
+## Status: Implemented
+## Feature: quality
 
 ---
 
-### 2. Local AI Persona Evaluation Framework
+### 1. Automated Checks
+| Check | Command | Covers |
+|---|---|---|
+| Types | `npx tsc -b` | Strict TS, unused locals |
+| Unit tests | `npm test` (Vitest) | `rigMath.test.ts`: IK reaches targets, preserves bone lengths, bends toward pole, clamps out-of-reach targets, stays stable with degenerate poles, keeps the leg in reach over a full crank revolution; `alignSegment` correctness |
+| Build | `npm run build` | Vite production bundle |
 
-To guarantee distinct character fidelity without cloud LLMs, the local AI generator is evaluated against semantic persona test suites:
+### 2. Visual Verification (AI-First practice)
+Every visual change is verified in a real browser (headless Chrome via Playwright):
+- Gameplay camera at several moments (cruise, boost, steering, cat switch).
+- Frozen debug cameras: side and front close-ups (IK contact, fur, eyes), street level, beach
+  level, aerial (layout, horizon, artefacts), intro timeline frames.
+- Console must be free of errors.
 
-#### 2.1 Persona Invariants
-1. **Appa Invariants**:
-   - Must exhibit contemplative, tranquil, or philosophical sentiments.
-   - Punctuation must be calm; no exclamation mark spam or ALL-CAPS screaming.
-   - Tone keywords: *breeze, harmony, pedals, clouds, patience, journey*.
-2. **Queso Invariants**:
-   - Must exhibit urgent, energetic, or comedic excitement.
-   - Frequent exclamation marks and dynamic excitement.
-   - Tone keywords: *speed, cheese, zoomies, faster, squirrel, drift, turbo*.
+**Artefact checklist** (each has bitten this project once — ADR-008):
+- Bright square blobs after bloom ⇒ NaN/Inf in a shader: `pow()` with negative base, division by
+  a value that can reach 0, unclamped `mix()` factors.
+- Z-fighting where water/sand/grass layers overlap.
+- Objects intersecting landmarks (palms vs pier deck).
 
-#### 2.2 Cooldown & Anti-Spam Evals
-- **Minimum Dialogue Interval**: $\ge 6.0\text{ seconds}$ between ambient quotes.
-- **Audio Overlap Prevention**: If a priority event occurs while an utterance is currently playing, the active speech must be immediately canceled (`speechSynthesis.cancel()`) prior to initiating the new dialogue.
-- **Browser Autoplay Policy**: Web Speech TTS must remain muted until the player performs at least one explicit user interaction (click, keypress).
+### 3. Performance Budget
+Measured with `renderer.info` (auto-reset disabled across one composer frame) and rAF timing:
 
----
+| Metric | Target | Current (desktop, 1280×720) |
+|---|---|---|
+| Draw calls / frame (incl. shadows + post) | ≤ 180 | ~166 |
+| Rider (cat + bike) draw calls | ≤ 30 | 29 |
+| Road chunk | ≤ ~10 | ~9 |
+| Frame time | 60 fps on mid hardware | ~2.7 ms median on RX 9070 XT |
+| Bundle | < 300 KB gzip | ~225 KB gzip |
 
-### 3. Automated Test Suite Breakdown
-- **Unit Tests**:
-  - `RoadManager.test.ts`: Verify recycling coordinates and queue ordering.
-  - `BikeController.test.ts`: Verify boundary clamping and banking angle calculations.
-  - `AIEngine.test.ts`: Verify trigger evaluations and persona payload invariants.
-- **Integration Tests**:
-  - `CatSwitcher.test.ts`: Verify state toggle and event propagation to HUD and audio.
+> The original target of "< 45 draw calls" was unrealistic once bloom/post-processing were added
+> (the post stack alone is ~15 passes). Revised in ADR-006.
+
+### 4. Not Yet Verified
+- Real mobile devices (low tier is exercised with `?quality=low` on desktop only).
+- Long-session memory profile (> 30 min).

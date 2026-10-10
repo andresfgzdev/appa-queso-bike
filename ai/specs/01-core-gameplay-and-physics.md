@@ -1,75 +1,59 @@
-# Spec 01: Core Gameplay, Endless Road & Chase Camera
+# Spec 01: Core Gameplay, Treadmill Road & Camera
 
-## Status: Approved
+## Status: Implemented
 ## Feature: `features/game`
 
 ---
 
-### 1. Functional Requirements
+### 1. Treadmill World
+The rider stays near the origin; the world scrolls toward the camera (+Z) to avoid floating-point
+drift.
 
-#### 1.1 Treadmill Conveyor Road System
-- The road is composed of $N$ modular chunks ($N \ge 5$).
-- Each chunk has length $L = 30\text{m}$ and width $W = 12\text{m}$.
-- Rather than translating the bike infinitely into floating-point error space ($z \to \infty$), the simulation employs the **Treadmill Technique**:
-  - The bike is pinned around $z = 0$.
-  - Road chunks and roadside scenery (trees, streetlamps, curbs) move toward the camera with velocity $V_z = \text{baseSpeed} \times \Delta t$.
-  - When a chunk passes $z > z_{\text{despawn}}$ ($z > 15\text{m}$ behind the camera), it is recycled to the horizon at $z = z_{\text{front}} - L$.
+| Parameter | Value |
+|---|---|
+| Chunk length × count | 40 m × 7 |
+| Recycle threshold | chunk origin `z > 50` → moved to the front of the queue |
+| Cruise speed | 11 m/s (≈ 18 km/h on the HUD) |
+| Boost | ×1.5, eased with `1 − e^(−3.5·Δt)` |
+| Lateral range | `x ∈ [−4, 4]` (path half-width 4.75 m) |
+| Lateral speed | 5.2 m/s × steer |
 
-#### 1.2 Bike Steering & Kinematic Leaning
-- **Input Channels**: Keyboard (`A`/`D`, `ArrowLeft`/`ArrowRight`), Pointer/Touch drag on screen.
-- **Lateral Range**: Clamped within lane bounds $x \in [-4.5, 4.5]$.
-- **Lateral Smoothing**:
-  $$x_{\text{target}} = x_{\text{current}} + \text{input} \cdot v_{\text{lateral}} \cdot \Delta t$$
-  $$x_{\text{bike}} = \text{lerp}(x_{\text{bike}}, x_{\text{target}}, \alpha_{\text{steer}})$$
-- **Banking / Lean Angle**: When steering, the bike rotates around its local Z axis:
-  $$\theta_{\text{bank}} = -\text{clamp}(\text{input}, -1, 1) \cdot \theta_{\text{max}} \quad (\theta_{\text{max}} \approx 0.28\text{ rad} \approx 16^\circ)$$
+Global (non-chunked) layers scroll by distance instead: ocean waves/foam (shader uniform), far
+ground texture offset, the pier landmark, traffic, sky life, particles.
 
-#### 1.3 Third-Person Chase Camera
-- **Offset Vector**: $\vec{O}_{\text{cam}} = (0, 2.8, -5.5)$ relative to bike coordinate origin.
-- **Look-At Target**: $\vec{T}_{\text{look}} = (x_{\text{bike}} \cdot 0.3, 1.2, 3.0)$ (slightly ahead of the cat).
-- **Lag / Damping**:
-  $$\vec{P}_{\text{cam}}(t) = \text{lerp}(\vec{P}_{\text{cam}}(t - \Delta t), \vec{P}_{\text{bike}} + \vec{O}_{\text{cam}}, \alpha_{\text{cam}})$$
-  where $\alpha_{\text{cam}} \approx 0.08$ to provide dynamic velocity inertia when swerving.
+### 2. Input
+- **Keyboard:** A/D or ←/→ steer, Space boost, C switch cat (auto-repeat ignored).
+- **Pointer drag** steers proportionally; **touch buttons** steer and boost on mobile.
+- Steering is eased: response 7/s toward the target, release 9/s back to centre.
+- Window `blur` clears held keys; all listeners are removed on `destroy()`.
 
----
+### 3. Chase Camera
+- Offset `(1.6, 2.15, 3.9)` from the bike, look target `(−0.25, 0.3, −9)`.
+- Frame-rate-independent damping `k = 1 − e^(−4.5·Δt)`.
+- FOV 52° opening up to +9° with boost; roll of `−steer · 0.035` rad into turns; subtle
+  hand-held drift (layered sines, 1.8 cm).
 
-### 2. Technical Contracts & Interfaces
+### 4. Cinematic Intro (9 s)
+Catmull-Rom flight relative to the bike: high over the beach toward the sunset → dive in from
+inland with the ocean behind → low hero shot of the cat's face → side profile → swing behind →
+chase position. FOV eases 34° → 52°, letterbox bars retract over the last 18 %.
+Any key or tap on the overlay skips with a 0.9 s blend into the chase camera. Input is ignored
+while the intro plays. `?nointro` disables it.
+
+### 5. Contracts
 
 ```typescript
-export interface InputState {
-  steer: number;        // -1.0 (hard left) to +1.0 (hard right)
-  boost: boolean;      // Spacebar / double tap
-  switchCat: boolean;  // 'C' key or switch tap
-}
-
-export interface BikePhysicsState {
-  x: number;
-  y: number;
-  z: number;
-  speed: number;        // units per second
-  leanAngle: number;    // radians
-  wheelRotation: number;// radians (spinning wheels)
-  pedalAngle: number;   // radians (crank rotation)
-}
-
-export interface RoadChunk {
-  mesh: THREE.Group;
-  zIndex: number;
-  hasObstacles: boolean;
-  length: number;
-}
+export interface InputState { steer: number; boost: boolean; switchCat: boolean }
 
 export interface GameTelemetry {
-  distanceTraveledMeters: number;
-  currentSpeedKmH: number;
+  speedKmh: number;
+  distanceTraveledM: number;
   steerIntensity: number;
-  isDrifting: boolean;
+  activeCatId: "appa" | "queso";
 }
 ```
 
----
-
-### 3. Acceptance Criteria
-1. Road chunks cycle infinitely without frame hitching or memory leaks (monitored via `renderer.info.memory.geometries`).
-2. Player can smoothly navigate between left and right curbs without clipping out of bounds.
-3. Camera smoothly lags during hard swerves and returns to center behind the cat.
+### 6. Acceptance Criteria
+1. Chunks recycle indefinitely with no growth in `renderer.info.memory.geometries`.
+2. The bike never leaves the path; the camera returns smoothly behind it after a swerve.
+3. Skipping the intro never jumps the camera.

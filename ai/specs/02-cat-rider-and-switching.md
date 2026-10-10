@@ -1,72 +1,54 @@
-# Spec 02: Cat Rider Entity, Bike Model & Character Switcher
+# Spec 02: Cat Rider, Bicycle & Switcher
 
-## Status: Approved
+## Status: Implemented
 ## Feature: `features/cat-rider`
 
 ---
 
-### 1. Visual & Anatomical Specifications
-
-#### 1.1 Real Cat Fidelity & Asset Pipeline
-To faithfully represent the real-life **Appa** and **Queso**, the system defines a two-tier model pipeline:
-
-1. **Source Asset Inputs (`public/assets/cats/`)**:
-   - `appa.png` / `appa.jpg`: Reference photo(s) of Appa.
-   - `queso.png` / `queso.jpg`: Reference photo(s) of Queso.
-2. **Model Asset Loading (`public/assets/models/`)**:
-   - `appa.glb` & `queso.glb`: Custom 3D meshes derived from real photos via Image-to-3D GenAI pipelines (e.g. Meshy, Tripo3D, or Blender photogrammetry).
-   - **Procedural Shader Fallback**: If `.glb` assets are not present, the engine renders procedural low-poly rigs whose UVs and color maps are dynamically mapped to match their real fur coats, markings (patches, stripes, socks), and eye colors.
-
-#### 1.2 Cat Real-Life Profiles (Confirmed from Photos)
-| Attribute | **Appa** (Real Cat Likeness) | **Queso** (Real Cat Likeness) |
+### 1. Real Cat Likeness
+| Attribute | **Appa** | **Queso** |
 | :--- | :--- | :--- |
-| **Fur Coat & Markings** | Pristine white coat with soft grey/brown tabby cap & forehead markings | Rich ginger/orange tabby with crisp white bib/chest and white mittens |
-| **Eye Color & Expression** | Inquisitive hazel-green eyes; calm, regal posture | Alert, expressive amber-green eyes; enthusiastic posture |
-| **Nose & Face** | Dark hazel/brown nose tip, slender face | Bright coral-pink nose, prominent white muzzle |
-| **Source Asset** | `public/assets/cats/appa.png` (Transparent cutout) | `public/assets/cats/queso.png` (Transparent cutout) |
-| **Bike Theme** | Mint cyan / teal metallic frame | Cheddar yellow / flame orange frame |
-| **Voice Profile (TTS)** | Pitch: `0.85`, Rate: `0.95`, contemplative & zen | Pitch: `1.45`, Rate: `1.30`, energetic & chaotic |
+| Coat | Cream-white with grey-brown tabby cap, ears and tail | Ginger tabby (broken procedural stripes) with white bib, muzzle and mittens |
+| Eyes | Hazel-green, calmer (lids 42 % closed) | Amber-green, alert (lids 30 %) |
+| Nose | Hazel-brown | Coral-pink |
+| Bike | Mint/green frame, yarn ball in the basket | Cheddar-orange frame, cheese wedge in the basket |
+| Source photos | `public/assets/cats/appa.png` | `public/assets/cats/queso.png` (HUD avatars) |
 
-#### 1.3 The Bicycle Rig Architecture
-The bicycle is constructed from optimized procedural Three.js low-poly primitives:
-- `FrameGroup`: Diamond frame, seat post, and saddle.
-- `SteeringGroup`: Fork, stem, and handlebars (rotates with steering input).
-- `FrontWheel` & `RearWheel`: Spokes and tire rim rotating dynamically:
-  $$\Delta \theta_{\text{wheel}} = \frac{v_{\text{bike}}}{r_{\text{wheel}}} \cdot \Delta t$$
-- `CranksetGroup`: Pedals and crank arms linked to the cat's hind feet.
+### 2. Bicycle (`BikeRig`)
+A beach cruiser built from real frame points (bike space, forward = −Z):
 
----
+| Point | Position |
+|---|---|
+| Wheels | radius 0.5, axles at z = ±0.85 |
+| Bottom bracket | (0, 0.36, 0.10) |
+| Head tube | top (0, 1.02, −0.58), bottom (0, 0.82, −0.684) |
 
-### 2. Pedaling & Kinematic Motion System
+- Steering rotates the whole front end (fork, wheel, bars, basket, light, fender) around the
+  **tilted head-tube axis** (≈ 27°), not a vertical axis.
+- Drivetrain: 32-tooth chainring, rear cog, chain runs; 24 laced spokes per wheel.
+- **Gear ratio 2.6**: the crank turns at wheel speed / 2.6 (≈ 84 rpm cadence at cruise).
+- Anchors exposed for IK: left/right pedal tops (level with the ground), left/right grips.
 
-```mermaid
-flowchart LR
-    Speed["Bike Velocity (v)"] --> Angular["Wheel Angular Velocity (w)"]
-    Angular --> Crank["Crankset Rotation (theta)"]
-    Crank --> LeftPaw["Left Foot (theta)"]
-    Crank --> RightPaw["Right Foot (theta + PI)"]
-    Speed --> TailWave["Tail Sine Wave Oscillator"]
-    Input["Steering Angle"] --> Handlebar["Handlebar Y-Rotation"]
-```
+### 3. Cat Rig & IK (`CatMeshBuilder`, `CatRider`, `rigMath`)
+- Proportions: thigh 0.42, shin 0.40, metatarsal 0.10; upper arm 0.27, forearm 0.26.
+- **Analytic two-bone IK** (law of cosines) every frame:
+  - Hip → hock targets the pedal anchor + `(0, 0.07, 0.075)`; knee pole forward/up/out.
+  - Shoulder → wrist targets the grip + `(0, 0.045, 0.03)`; elbow pole out/down/back.
+  - Out-of-reach targets fully extend without stretching bones.
+- Upper body pivots at the hips: forward lean grows with speed, rocks `sin(crank)·0.035`, breathes.
+- Head stays level, yaws into turns; ears fold back with speed; natural blinking every 2–6 s.
+- Tail: 8 chained segments with a travelling sway.
 
-1. **Pedal Synchronization**: As speed increases, the crankset rotates proportionally. Left and right rear paws track pedal anchors offset by $\pi$ radians ($180^\circ$).
-2. **Handlebar Tracking**: Front paws remain clamped to handlebar grips while the handlebar pivots $\pm 15^\circ$ according to steering intensity.
-3. **Dynamic Tail Oscillation**:
-   $$\theta_{\text{tail}}(t) = A_{\text{tail}} \cdot \sin(\omega_{\text{speed}} \cdot t) + \text{driftOffset}$$
+### 4. Fur (`furShells`)
+Shell texturing: each furry batch gets an `InstancedMesh` child drawing 10 shells (6 on low
+quality) offset along the normal (`length 0.0095`, density 210 strands/UV). Per-strand random
+length, taper, cell jitter, root darkening, gravity droop and **speed-driven wind flutter**.
 
----
+### 5. Switching
+`C` or the HUD pills swap rigs, recolour the frame material, swap the basket prop and play a
+squash-and-stretch on the upper body. The HUD is notified via `onCatSwitched`.
 
-### 3. The Seamless Cat Switcher
-
-#### 3.1 Switching Flow
-1. Player clicks the **Switch Cat** UI button or presses the **`C`** key.
-2. The `CatSwitcherService` transitions the active cat:
-   - A playful visual "poof" particle burst or scale squash/stretch occurs.
-   - The inactive cat mesh is toggled invisible; the active cat mesh is toggled visible.
-   - The active bike material swaps frame colors (Teal $\leftrightarrow$ Cheddar Yellow).
-3. The `ai-companion` receives a `CAT_SWITCHED` event, prompting an instant reactionary voice line (e.g., Queso complaining about Appa's slow pace or Appa wishing Queso would relax).
-
-#### 3.2 TypeScript Contracts
+### 6. Contracts
 
 ```typescript
 export type CatId = "appa" | "queso";
@@ -74,18 +56,14 @@ export type CatId = "appa" | "queso";
 export interface CatProfile {
   id: CatId;
   name: string;
-  breedDescription: string;
   themeColor: string;
-  bikeColor: number;
-  personalityType: "philosophical_zen" | "hyperactive_chaos";
-  ttsVoicePitch: number;   // 0.8 for Appa, 1.4 for Queso
-  ttsSpeechRate: number;   // 0.95 for Appa, 1.25 for Queso
-}
-
-export interface ICatRiderController {
-  activeCatId: CatId;
-  switchCat(targetId?: CatId): void;
-  update(delta: number, speed: number, steerInput: number): void;
-  getRootMesh(): THREE.Group;
+  frameColorHex: number;
+  photoUrl: string;
+  bio: string;
 }
 ```
+
+### 7. Acceptance Criteria
+1. Hind paws stay on the pedals for the full crank revolution (unit-tested reach + visual check).
+2. Front paws stay on the grips at full steering lock.
+3. Each cat renders in ≤ ~15 draw calls including fur (Spec 08).

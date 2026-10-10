@@ -1,64 +1,40 @@
-# Spec 05: Heads-Up Display (HUD) & UI Overlay
+# Spec 05: HUD & UI Overlay
 
-## Status: Approved
+## Status: Implemented
 ## Feature: `features/hud`
 
 ---
 
-### 1. Visual Design & UI Layout
-
-The UI floats over the Three.js WebGL canvas utilizing **Tailwind CSS** backdrop blur (glassmorphism) and **shadcn/ui** design tokens:
+### 1. Layout
 
 ```
 +-------------------------------------------------------------------------+
-|  [Appa & Queso Bike]         [ Speed: 24 km/h | 412 m ]       [Sound On]|
-+-------------------------------------------------------------------------+
+| [avatar] Appa & Queso Bike            [ VEL 18 km/h | DIST 412 m | 🔊 ] |
+| Piloto: Appa                                                            |
 |                                                                         |
-|                +---------------------------------------+                |
-|                | [Cat Avatar] "Did you see that bird?" |                |
-|                |              - Queso                  |                |
-|                +---------------------------------------+                |
+|                         (3D scene, no text bubbles)                     |
 |                                                                         |
-|                                                                         |
-|                                                                         |
-| [ < Steer Left ]                                      [ Steer Right > ] |
-|                                                                         |
-|                     +---------------------------+                       |
-|                     | (*) Appa    |    Queso [C]|                       |
-|                     +---------------------------+                       |
+| [ ◀ ]           [ TURBO ]            [ ▶ ]     ← touch devices only     |
+|            ( Appa (Zen) • Activo |  Queso (Caos) | Tecla [C] )          |
+|     Usa A / D o ← / → para doblar • C cambiar gato • Espacio turbo      |
 +-------------------------------------------------------------------------+
 ```
 
----
+### 2. Components (`src/features/hud/components/`)
+| Component | Responsibility |
+|---|---|
+| `GameHUD.tsx` | Title pill with active cat avatar, speed/distance pill with sound toggle, cat switcher, touch steering + turbo buttons, keyboard hints |
+| `IntroOverlay.tsx` | Serif title card "Appa & Queso — Un paseo al atardecer" (top third, so the hero shot stays visible), skip hint, "Activar sonido ambiental" pill |
 
-### 2. Component Hierarchy
+### 3. Behaviour
+- Glassmorphism (`backdrop-blur`, slate-900/80) over the canvas; root is `pointer-events-none`,
+  interactive pieces opt back in.
+- The HUD is hidden during the intro and fades in (1 s) when gameplay starts.
+- Touch buttons release on `pointerup`, `pointerleave` and `pointercancel` (no stuck steering).
+- Sound button reflects `AmbientAudio.enabled` (Lucide `Volume2` / `VolumeX`).
+- **No on-screen thoughts or dialogue** (removed — ADR-004).
 
-```
-src/features/hud/components/
-├── GameHUD.tsx                 # Master HUD container
-├── TopDashboard.tsx            # Odometer, digital speedometer, sound toggle
-├── CatSwitchBar.tsx            # Interactive Appa & Queso selector with [C] hotkey
-├── ThoughtBubble.tsx           # Comic speech bubble with animated typing and avatar
-└── MobileControls.tsx          # Touch steering buttons (visible on touch devices)
-```
-
----
-
-### 3. Component Specifications
-
-#### 3.1 `CatSwitchBar.tsx`
-- Renders dual pill buttons for **Appa** (Teal accent) and **Queso** (Orange accent).
-- Highlights the active rider with an animated active badge.
-- Displays keyboard shortcut cue (`[C]`).
-- Clicking or tapping immediately fires `onCatSwitch()`.
-
-#### 3.2 `ThoughtBubble.tsx`
-- Subscribes to the `ai-companion` dialogue stream.
-- Smoothly fades in via `tailwindcss-animate` (`animate-in fade-in zoom-in-95`).
-- Displays the speaker's name, custom avatar, and the generated quote.
-- Automatically dismisses after its duration expires.
-
-#### 3.3 `TopDashboard.tsx`
-- Real-time speedometer reading in **km/h**.
-- Distance counter in meters ($m$).
-- Volume/Mute button controlling Web Speech TTS output.
+### 4. Acceptance Criteria
+1. Cat switcher state stays in sync whether switching via keyboard or buttons.
+2. HUD never blocks steering drags on the canvas outside its controls.
+3. Layout works from 360 px wide phones to desktop; uses `100dvh` to avoid mobile URL-bar jumps.
