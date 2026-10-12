@@ -104,8 +104,10 @@ export class GameEngine {
     window.addEventListener("keydown", this.handleSkip);
     container.addEventListener("pointerdown", this.handleSkip);
 
-    // 10. Resize
+    // 10. Resize (iOS reports the new size late after rotation, so re-check shortly after)
     window.addEventListener("resize", this.handleResize);
+    window.addEventListener("orientationchange", this.handleOrientation);
+    window.visualViewport?.addEventListener("resize", this.handleResize);
   }
 
   private setupLighting(): void {
@@ -249,8 +251,14 @@ export class GameEngine {
     if (this.chaseCamera.isIntroPlaying) this.skipIntro();
   };
 
+  private handleOrientation = (): void => {
+    this.handleResize();
+    window.setTimeout(this.handleResize, 250);
+    window.setTimeout(this.handleResize, 600);
+  };
+
   private handleResize = (): void => {
-    if (!this.container) return;
+    if (!this.container || !this.isRunning) return;
     const width = this.container.clientWidth;
     const height = this.container.clientHeight;
     this.chaseCamera.resize(width / height);
@@ -261,6 +269,8 @@ export class GameEngine {
   public destroy(): void {
     this.stop();
     window.removeEventListener("resize", this.handleResize);
+    window.removeEventListener("orientationchange", this.handleOrientation);
+    window.visualViewport?.removeEventListener("resize", this.handleResize);
     window.removeEventListener("keydown", this.handleSkip);
     this.container.removeEventListener("pointerdown", this.handleSkip);
     this.input.destroy();

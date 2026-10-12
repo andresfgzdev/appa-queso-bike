@@ -48,3 +48,22 @@
     --ring: 224.3 76.3% 48%;
   }
 }
+
+/* Full-screen game shell: no page scroll, rubber-band bounce, zoom or long-press callouts */
+html,
+body,
+#root {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+canvas {
+  touch-action: none;
+  display: block;
+}

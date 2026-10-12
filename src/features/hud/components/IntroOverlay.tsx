@@ -35,9 +35,9 @@ export function IntroOverlay({ visible, onSkip, showSoundPrompt, onEnableSound }
       }`}
       onPointerDown={onSkip}
     >
-      <div className="absolute inset-x-0 top-[17%] flex flex-col items-center text-center px-6">
+      <div className="absolute inset-x-0 top-[17%] [@media(max-height:520px)]:top-[15%] flex flex-col items-center text-center px-6">
         <h1
-          className={`font-serif text-white text-5xl sm:text-7xl md:text-8xl tracking-tight drop-shadow-[0_4px_24px_rgba(120,50,10,0.55)] transition-all duration-[1400ms] ease-out ${
+          className={`font-serif text-white text-5xl sm:text-7xl md:text-8xl [@media(max-height:520px)]:text-5xl tracking-tight drop-shadow-[0_4px_24px_rgba(120,50,10,0.55)] transition-all duration-[1400ms] ease-out ${
             showTitle ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-4 blur-sm"
           }`}
         >
@@ -58,7 +58,7 @@ export function IntroOverlay({ visible, onSkip, showSoundPrompt, onEnableSound }
             e.stopPropagation();
             onEnableSound();
           }}
-          className="absolute bottom-[18%] left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full bg-white/15 hover:bg-white/25 border border-white/30 backdrop-blur-md text-white text-xs sm:text-sm tracking-wide transition-colors"
+          className="absolute bottom-[18%] [@media(max-height:520px)]:bottom-[20%] left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full bg-white/15 hover:bg-white/25 border border-white/30 backdrop-blur-md text-white text-xs sm:text-sm tracking-wide transition-colors"
         >
           <span aria-hidden>🔊</span> Activar sonido ambiental
         </button>

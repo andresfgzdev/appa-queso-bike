@@ -68,7 +68,7 @@ export default function App() {
   return (
     <main className="relative w-screen h-[100dvh] overflow-hidden bg-[#ffc7a2]">
       {/* 3D WebGL Canvas Container */}
-      <div ref={containerRef} className="absolute inset-0 w-full h-full" />
+      <div ref={containerRef} className="absolute inset-0 w-full h-full touch-none" />
 
       {/* Cinematic title card during the intro camera flight */}
       <IntroOverlay

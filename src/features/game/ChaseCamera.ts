@@ -47,6 +47,12 @@ export class ChaseCamera {
   private posCurve = new THREE.CatmullRomCurve3(INTRO_POSITIONS, false, "centripetal");
   private lookCurve = new THREE.CatmullRomCurve3(INTRO_LOOKS, false, "centripetal");
 
+  // Framing adapted to the viewport aspect (see resize)
+  private chaseOffset = CHASE_OFFSET.clone();
+  private chaseLook = CHASE_LOOK.clone();
+  private baseFov = BASE_FOV;
+  private fovScale = 1;
+
   private currentPos = CHASE_OFFSET.clone();
   private currentLook = CHASE_LOOK.clone();
   private currentFov = BASE_FOV;
@@ -60,6 +66,7 @@ export class ChaseCamera {
     this.camera = new THREE.PerspectiveCamera(BASE_FOV, aspect, 0.1, 400);
     this.camera.position.copy(this.currentPos);
     this.camera.lookAt(this.currentLook);
+    this.resize(aspect);
   }
 
   public get isIntroPlaying(): boolean {
@@ -85,8 +92,8 @@ export class ChaseCamera {
     this.time += delta;
 
     // Live chase target (used directly in chase mode, and as the destination of the intro)
-    const chasePos = this._pos.set(bikeX + CHASE_OFFSET.x, CHASE_OFFSET.y, CHASE_OFFSET.z);
-    const chaseLookX = bikeX + CHASE_LOOK.x;
+    const chasePos = this._pos.set(bikeX + this.chaseOffset.x, this.chaseOffset.y, this.chaseOffset.z);
+    const chaseLookX = bikeX + this.chaseLook.x;
 
     if (this.mode === "intro") {
       this.introTime += delta;
@@ -96,7 +103,7 @@ export class ChaseCamera {
       this.lookCurve.getPoint(u, this._look);
       this.camera.position.x += bikeX;
       this._look.x += bikeX;
-      this.camera.fov = THREE.MathUtils.lerp(34, BASE_FOV, easeInOut(t * 1.1 - 0.1));
+      this.camera.fov = THREE.MathUtils.lerp(34, BASE_FOV, easeInOut(t * 1.1 - 0.1)) * this.fovScale;
       this.letterbox = 1 - easeInOut((t - 0.82) / 0.18);
       this.camera.lookAt(this._look);
       this.camera.updateProjectionMatrix();
@@ -109,8 +116,8 @@ export class ChaseCamera {
       this.blendTime += delta;
       const u = easeInOut(this.blendTime / SKIP_BLEND);
       this.camera.position.lerpVectors(this.blendFromPos, chasePos, u);
-      this._look.lerpVectors(this.blendFromLook, new THREE.Vector3(chaseLookX, CHASE_LOOK.y, CHASE_LOOK.z), u);
-      this.camera.fov = THREE.MathUtils.lerp(this.blendFromFov, BASE_FOV, u);
+      this._look.lerpVectors(this.blendFromLook, new THREE.Vector3(chaseLookX, this.chaseLook.y, this.chaseLook.z), u);
+      this.camera.fov = THREE.MathUtils.lerp(this.blendFromFov, this.baseFov, u);
       this.letterbox = 1 - u;
       this.camera.lookAt(this._look);
       this.camera.updateProjectionMatrix();
@@ -122,8 +129,8 @@ export class ChaseCamera {
     const k = damp(4.5, delta);
     this.currentPos.lerp(chasePos, k);
     this.currentLook.x += (chaseLookX - this.currentLook.x) * k;
-    this.currentLook.y = CHASE_LOOK.y;
-    this.currentLook.z = CHASE_LOOK.z;
+    this.currentLook.y += (this.chaseLook.y - this.currentLook.y) * k;
+    this.currentLook.z += (this.chaseLook.z - this.currentLook.z) * k;
 
     // Hand-held drift (very subtle, layered sines)
     const sway = 0.018;
@@ -139,7 +146,7 @@ export class ChaseCamera {
     this.camera.rotateZ(this.roll);
 
     // FOV opens up with speed (sense of acceleration)
-    const targetFov = BASE_FOV + speedFactor * 9;
+    const targetFov = this.baseFov + speedFactor * 9;
     this.currentFov += (targetFov - this.currentFov) * damp(2.5, delta);
     if (Math.abs(this.camera.fov - this.currentFov) > 0.01) {
       this.camera.fov = this.currentFov;
@@ -159,6 +166,24 @@ export class ChaseCamera {
 
   public resize(aspect: number): void {
     this.camera.aspect = aspect;
+    // 0 on landscape/desktop → 1 on a tall portrait phone (aspect ≈ 0.46)
+    const portrait = THREE.MathUtils.clamp((1.25 - aspect) / 0.8, 0, 1);
+    this.chaseOffset.set(
+      THREE.MathUtils.lerp(CHASE_OFFSET.x, 0.55, portrait),
+      THREE.MathUtils.lerp(CHASE_OFFSET.y, 2.7, portrait),
+      THREE.MathUtils.lerp(CHASE_OFFSET.z, 5.4, portrait)
+    );
+    this.chaseLook.set(
+      THREE.MathUtils.lerp(CHASE_LOOK.x, 0.0, portrait),
+      THREE.MathUtils.lerp(CHASE_LOOK.y, 0.9, portrait),
+      CHASE_LOOK.z
+    );
+    this.baseFov = THREE.MathUtils.lerp(BASE_FOV, 66, portrait);
+    this.fovScale = this.baseFov / BASE_FOV;
+    if (this.mode === "chase") {
+      this.currentFov = this.baseFov;
+      this.camera.fov = this.baseFov;
+    }
     this.camera.updateProjectionMatrix();
   }
 }
